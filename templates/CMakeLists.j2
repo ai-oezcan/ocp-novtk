@@ -15,19 +15,30 @@ SET(PYTHON_SP_DIR "site-packages" CACHE PATH "Python site-packages directory (fo
 
 find_package( fmt  REQUIRED )
 find_package( pybind11 REQUIRED )
-find_package( VTK REQUIRED
-  COMPONENTS
-    WrappingPythonCore
-    RenderingCore
-    RenderingOpenGL2
-    CommonDataModel
-    CommonExecutionModel
-    freetype
-  OPTIONAL_COMPONENTS
-    mpi
-)
-message(STATUS "VTK ${VTK_VERSION} found")
-find_package( OpenCASCADE REQUIRED )
+option(OCP_ENABLE_VTK "Build VTK bindings" OFF)
+if(OCP_ENABLE_VTK)
+  message(FATAL_ERROR "This repository only generates VTK-free OCP bindings")
+endif()
+
+if(NOT DEFINED ENV{CONDA_PREFIX} OR "$ENV{CONDA_PREFIX}" STREQUAL "")
+  message(FATAL_ERROR "Activate the conda environment containing occt=8.0.1=novtk_*")
+endif()
+find_package(OpenCASCADE 8.0.1 CONFIG REQUIRED
+             PATHS "$ENV{CONDA_PREFIX}" "$ENV{CONDA_PREFIX}/Library"
+             NO_DEFAULT_PATH)
+if(NOT OpenCASCADE_LIBRARIES)
+  message(FATAL_ERROR "OpenCASCADE exports no OCCT libraries")
+endif()
+foreach(occt_target IN LISTS OpenCASCADE_LIBRARIES)
+  if(NOT TARGET ${occt_target})
+    message(FATAL_ERROR "OpenCASCADE library ${occt_target} is not an imported target")
+  endif()
+  get_target_property(is_imported ${occt_target} IMPORTED)
+  get_target_property(target_type ${occt_target} TYPE)
+  if(NOT is_imported OR NOT target_type STREQUAL "SHARED_LIBRARY")
+    message(FATAL_ERROR "OpenCASCADE library ${occt_target} is not an imported shared target")
+  endif()
+endforeach()
 
 include_directories( ${PROJECT_SOURCE_DIR} )
 file( GLOB CPP_FILES ${PROJECT_SOURCE_DIR}/*.cpp )
@@ -37,7 +48,7 @@ add_library( {{ name }} MODULE ${CPP_FILES} )
 target_include_directories( {{ name }} PRIVATE ${OpenCASCADE_INCLUDE_DIR} )
 
 target_link_libraries( {{ name }} PRIVATE ${OpenCASCADE_LIBRARIES} )
-target_link_libraries( {{ name }} PRIVATE pybind11::pybind11 VTK::WrappingPythonCore VTK::RenderingCore VTK::CommonDataModel VTK::CommonExecutionModel fmt::fmt)
+target_link_libraries( {{ name }} PRIVATE pybind11::pybind11 fmt::fmt)
 
 set_target_properties( {{ name }}
                        PROPERTIES
@@ -74,4 +85,6 @@ if(APPLE)
 endif()
 
 
-install( TARGETS {{ name }} LIBRARY DESTINATION ${PYTHON_SP_DIR} )
+install( TARGETS {{ name }}
+         LIBRARY DESTINATION ${PYTHON_SP_DIR}
+         RUNTIME DESTINATION ${PYTHON_SP_DIR} )

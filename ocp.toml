@@ -3,7 +3,7 @@ input_folder = "./opencascade"
 output_folder = "./OCP"
 template_path = "./templates"
 
-additional_files = ["pystreambuf.h","vtk_pybind.h"]
+additional_files = ["pystreambuf.h"]
 
 pats = ["{}_*.hxx","{}.hxx"]
 
@@ -11,7 +11,6 @@ exclude_namespaces = [
 "std",
 "opencascade",
 "IMeshData",
-"IVtkTools",
 "BVH",
 "OpenGl",
 "OpenGl_HashMapInitializer",
@@ -334,10 +333,6 @@ modules = [
 "Vrml",
 "VrmlAPI",
 "RWGltf",
-"IVtk",
-"IVtkOCC",
-"IVtkTools",
-"IVtkVTK",
 "DE",
 "IMeshTools",
 "IMeshData",
@@ -361,7 +356,7 @@ exclude = [
 "BRepMesh_ConeRangeSplitter.hxx","BRepMesh_CylinderRangeSplitter.hxx",
 "BRepMesh_NURBSRangeSplitter.hxx","BRepMesh_SphereRangeSplitter.hxx",
 "BRepMesh_TorusRangeSplitter.hxx","BRepMesh_UVParamRangeSplitter.hxx","OpenGl_GLESExtensions.hxx",
-"IVtk_IShapePickerAlgo.hxx","ProjLib_HCompProjectedCurve.hxx","ProjLib_HProjectedCurve.hxx",
+"ProjLib_HCompProjectedCurve.hxx","ProjLib_HProjectedCurve.hxx",
 "OSD_StreamBuffer.hxx","IntSurf_Allocator.hxx","Extrema_GGenExtCC.hxx",
 "NCollection_ForwardRange.hxx",
 "Graphic3d_MapIteratorOfMapOfStructure.hxx",
@@ -1364,7 +1359,6 @@ exclude_collection = [
 "Sequence_const gp_Pnt2d",
 "IndexedDataMap_Standard_Transient_Standard_Transient",
 "IndexedDataMap_TCollection_AsciiString_Standard_Transient",
-"List_IVtk_PointId",
 "ForwardRangeIterator_TopExp_Explorer",
 "ForwardRangeIterator_TopoDS_Iterator",
 "IndexedMap_const Graphic3d_CStructure",
@@ -2352,28 +2346,6 @@ using rapidjson::BasicOStreamWrapper;"""
 
             "Interface_ValueInterpret.hxx" = "#include <Interface_TypedValue.hxx>"
 
-    [Modules.IVtkVTK]
-
-        include_header_pre = """#include <vtkRenderer.h>
-#include "vtk_pybind.h" """
-
-    [Modules.IVtkTools]
-
-        include_header_pre = """#undef Handle
-#include <vtkRenderer.h>
-#include <vtkActor.h>
-#include <vtkInformationObjectBaseKey.h>"""
-
-        exclude_methods = ["IVtkTools_ShapePicker::Pick","IVtkTools_ShapePicker::pick",
-        "IVtkTools_SubPolyDataFilter::PrintSelf", "IVtkTools_DisplayModeFilter::PrintSelf"]
-
-    [Modules.IVtk]
-
-        exclude_typedefs = ["IVtk_PointIdList"]
-
-    [Modules.IVtkOCC]
-
-        exclude_methods = ["IVtkOCC_ShapePickerAlgo::Pick", "IVtkOCC_ViewerSelector::Pick"]
 
     [Modules.BinLDrivers]
 

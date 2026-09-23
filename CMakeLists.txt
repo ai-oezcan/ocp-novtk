@@ -4,28 +4,24 @@ project(OCP)
 set(N_PROC
     2
     CACHE STRING "Number of processes used for generating code")
-set(DLL_EXT
-    dll
-    CACHE STRING "DLL suffix")
 set(MSVC_VER
     16
     CACHE STRING "MSVC version to download for win generation")
-set(OCCT_LIB_DIR CACHE PATH "Location of OCCT sos/dlls")
+set(OCCT_LIB_DIR "" CACHE PATH "Windows OCCT DLL directory for cross-generation")
+set(DLL_EXT dll CACHE STRING "Windows OCCT DLL suffix for cross-generation")
+option(OCP_ENABLE_VTK "Generate VTK bindings" OFF)
+if(OCP_ENABLE_VTK)
+  message(FATAL_ERROR "This repository only generates VTK-free OCP bindings")
+endif()
 
-find_package(OpenGL REQUIRED)
+if(NOT DEFINED ENV{CONDA_PREFIX} OR "$ENV{CONDA_PREFIX}" STREQUAL "")
+  message(FATAL_ERROR "Activate the conda environment containing occt=8.0.1=novtk_*")
+endif()
+
+find_package(OpenCASCADE 8.0.1 CONFIG REQUIRED
+             PATHS "$ENV{CONDA_PREFIX}" "$ENV{CONDA_PREFIX}/Library"
+             NO_DEFAULT_PATH)
 find_package(LLVM REQUIRED)
-find_package(
-  VTK REQUIRED
-  COMPONENTS CommonCore
-             WrappingPythonCore
-             RenderingCore
-             RenderingOpenGL2
-             CommonDataModel
-             CommonExecutionModel
-             freetype)
-
-message(STATUS "VTK ${VTK_VERSION} found")
-
 find_package(RapidJSON REQUIRED)
 find_package(Clang REQUIRED)
 
@@ -35,36 +31,49 @@ find_package(
   COMPONENTS Interpreter Development
   REQUIRED)
 
-# find OCCT and dump symbols
-if(EXISTS ${OCCT_LIB_DIR})
-  file(
-    GLOB occt_libs
-    LIST_DIRECTORIES false
-    ${OCCT_LIB_DIR}/*.${DLL_EXT})
-  message(STATUS Found OCCT libs: ${occt_libs})
+# Native generation dumps symbols from the imported shared OCCT targets that
+# the generated module links against. Cross-generation of Windows bindings on
+# Linux instead dumps the target conda package's DLLs, not the host's .so files.
+set(occt_libs)
+if(OCCT_LIB_DIR)
+  if(NOT PLATFORM STREQUAL "Windows")
+    message(FATAL_ERROR "OCCT_LIB_DIR is only for Windows cross-generation")
+  endif()
+  file(GLOB occt_libs LIST_DIRECTORIES false "${OCCT_LIB_DIR}/TK*.${DLL_EXT}")
+  if(NOT occt_libs)
+    message(FATAL_ERROR "No OCCT DLLs found in ${OCCT_LIB_DIR}")
+  endif()
 else()
-  find_package(
-    OpenCASCADE REQUIRED 
-  )
-
-  foreach(target ${OpenCASCADE_LIBRARIES})
+  if(NOT OpenCASCADE_LIBRARIES)
+    message(FATAL_ERROR "OpenCASCADE exports no OCCT libraries")
+  endif()
+  foreach(target IN LISTS OpenCASCADE_LIBRARIES)
+    if(NOT TARGET ${target})
+      message(FATAL_ERROR "OpenCASCADE library ${target} is not an imported target")
+    endif()
+    get_target_property(is_imported ${target} IMPORTED)
+    get_target_property(target_type ${target} TYPE)
+    if(NOT is_imported OR NOT target_type STREQUAL "SHARED_LIBRARY")
+      message(FATAL_ERROR "OpenCASCADE library ${target} is not an imported shared target")
+    endif()
+    # Windows IMPORTED_LOCATION is the DLL, not the import library.
     get_target_property(loc ${target} IMPORTED_LOCATION_RELEASE)
-    list(APPEND occt_libs ${loc})
+    if(NOT loc OR loc MATCHES "-NOTFOUND$")
+      get_target_property(loc ${target} IMPORTED_LOCATION)
+    endif()
+    if(NOT loc OR loc MATCHES "-NOTFOUND$" OR NOT EXISTS "${loc}")
+      message(FATAL_ERROR "No shared OCCT library for ${target}: ${loc}")
+    endif()
+    list(APPEND occt_libs "${loc}")
   endforeach()
 endif()
 
-execute_process(COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/dump_symbols.py
-                        "${occt_libs}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+execute_process(
+  COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/dump_symbols.py "${occt_libs}"
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMAND_ERROR_IS_FATAL ANY)
 
 get_target_property(LIBCLANG_PATH libclang IMPORTED_LOCATION_RELEASE)
-get_target_property(VTK_INCLUDE_DIR VTK::CommonCore
-                    INTERFACE_INCLUDE_DIRECTORIES)
-
-# for some reason I get multiple generator expressions
-string(REPLACE ">" ">;" VTK_INCLUDE_DIR ${VTK_INCLUDE_DIR})
-list(GET VTK_INCLUDE_DIR 0 VTK_INCLUDE_DIR)
-
-message(STATUS "Include dirs: ${VTK_INCLUDE_DIR}")
 message(STATUS "Include dirs: ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}")
 
 # OSX
@@ -119,9 +128,7 @@ add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/tmp.pkl
   COMMAND
     ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}/pywrap"
-    ${Python_EXECUTABLE} -m bindgen -n ${N_PROC} -l ${LIBCLANG_PATH} -i
-    ${VTK_INCLUDE_DIR}/
-    # -i ${OPENGL_INCLUDE_DIRS}
+    ${Python_EXECUTABLE} -m bindgen -n ${N_PROC} -l ${LIBCLANG_PATH}
     -i ${RapidJSON_INCLUDE_DIRS} -i
     ${CLANG_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include/ -p
     ${CMAKE_SOURCE_DIR} ${CXX_INCLUDES} parse ${CMAKE_SOURCE_DIR}/ocp.toml
@@ -137,9 +144,7 @@ add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/tmp_filtered.pkl
   COMMAND
     ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}/pywrap"
-    ${Python_EXECUTABLE} -m bindgen -n ${N_PROC} -l ${LIBCLANG_PATH} -i
-    ${VTK_INCLUDE_DIR}/
-    # -i ${OPENGL_INCLUDE_DIRS}
+    ${Python_EXECUTABLE} -m bindgen -n ${N_PROC} -l ${LIBCLANG_PATH}
     -i ${RapidJSON_INCLUDE_DIRS} -i
     ${CLANG_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include/ -p
     ${CMAKE_SOURCE_DIR} ${CXX_INCLUDES} transform ${CMAKE_SOURCE_DIR}/ocp.toml
@@ -156,9 +161,7 @@ add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/OCP/CMakeLists.txt
   COMMAND
     ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}/pywrap"
-    ${Python_EXECUTABLE} -m bindgen -n ${N_PROC} -l ${LIBCLANG_PATH} -i
-    ${VTK_INCLUDE_DIR}/
-    # -i ${OPENGL_INCLUDE_DIRS}
+    ${Python_EXECUTABLE} -m bindgen -n ${N_PROC} -l ${LIBCLANG_PATH}
     -i ${RapidJSON_INCLUDE_DIRS} -i
     ${CLANG_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include/ -p
     ${CMAKE_SOURCE_DIR} ${CXX_INCLUDES} generate ${CMAKE_SOURCE_DIR}/ocp.toml
