@@ -13,7 +13,7 @@ from build_wheel import DIST_INFO, OCCT, VERSION, sha256
 
 
 folder = Path(sys.argv[1])
-assert os.environ["GITHUB_REF_NAME"] == "ocp-novtk-8.0.1.0.0-catalix.1"
+assert os.environ["GITHUB_REF_NAME"] == "ocp-novtk-8.0.1.0.0-novtk.1"
 expected = {f"cadquery_ocp_novtk-{VERSION}-cp313-cp313-{platform}.whl" for platform in OCCT}
 actual = {path.name for path in folder.glob("*.whl")}
 assert actual == expected, f"expected exactly two native platform wheels: {actual}"

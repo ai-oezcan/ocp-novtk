@@ -24,7 +24,7 @@ platform-specific OCCT build:
 | Linux x86_64 | `occt=8.0.1=novtk_h6e372de_101` |
 | Windows x64 | `occt=8.0.1=novtk_h6bfc850_101` |
 
-Download the matching `cadquery_ocp_novtk-8.0.1.0.0+catalix.1-cp313-cp313-*.whl`
+Download the matching `cadquery_ocp_novtk-8.0.1.0.0+novtk.1-cp313-cp313-*.whl`
 from this repository's tagged GitHub Release, verify its SHA-256 against the
 adjacent `.provenance.json` asset, and install that **local wheel** with pip.
 For example, on Linux:
@@ -33,14 +33,14 @@ For example, on Linux:
 micromamba create -n ocp-novtk -c conda-forge --override-channels \
   python=3.13 pip 'occt=8.0.1=novtk_h6e372de_101'
 micromamba activate ocp-novtk
-python -m pip install --no-index --no-deps ./cadquery_ocp_novtk-8.0.1.0.0+catalix.1-cp313-cp313-linux_x86_64.whl
+python -m pip install --no-index --no-deps ./cadquery_ocp_novtk-8.0.1.0.0+novtk.1-cp313-cp313-linux_x86_64.whl
 python -c 'import OCP; print(OCP.__file__)'
 ```
 
 Use the `win_amd64` wheel and Windows OCCT build on Windows. The distribution
 name deliberately satisfies `build123d==0.13.0`'s
 `cadquery-ocp-novtk>=8.0,<8.1` requirement. When installing build123d, pin
-`cadquery-ocp-novtk==8.0.1.0.0+catalix.1` in a pip constraints file so a
+`cadquery-ocp-novtk==8.0.1.0.0+novtk.1` in a pip constraints file so a
 resolver cannot replace the locally installed wheel with an unrelated public
 distribution. Never install the separate `ocp` or `cadquery-ocp` distribution
 in this environment.

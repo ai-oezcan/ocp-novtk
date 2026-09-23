@@ -162,7 +162,7 @@ jobs:
           micromamba create -n smoke --yes -c conda-forge --override-channels \
             python=3.13 pip "occt=8.0.1=$OCCT_BUILD"
           micromamba run -n smoke python -m pip install --no-index --no-deps dist/*.whl
-          printf 'cadquery-ocp-novtk==8.0.1.0.0+catalix.1\n' > ocp-constraint.txt
+          printf 'cadquery-ocp-novtk==8.0.1.0.0+novtk.1\n' > ocp-constraint.txt
           micromamba run -n smoke python -m pip install -c ocp-constraint.txt 'build123d==0.13.0'
           micromamba run -n smoke python -m pip check
           micromamba run -n smoke python packaging/check_install.py

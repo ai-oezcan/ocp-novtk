@@ -9,7 +9,7 @@ import sys
 from tempfile import TemporaryDirectory
 
 
-EXPECTED_VERSION = "8.0.1.0.0+catalix.1"
+EXPECTED_VERSION = "8.0.1.0.0+novtk.1"
 prefix = Path(os.environ["CONDA_PREFIX"]).resolve()
 assert (sys.version_info[:2], sys.implementation.name) == ((3, 13), "cpython")
 package = metadata.distribution("cadquery-ocp-novtk")

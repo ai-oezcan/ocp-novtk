@@ -3,7 +3,7 @@ name: Native OCP novtk wheels
 on:
   push:
     branches: [master, main]
-    tags: ["ocp-novtk-8.0.1.0.0-catalix.1"]
+    tags: ["ocp-novtk-8.0.1.0.0-novtk.1"]
   pull_request:
     branches: [master, main]
   workflow_dispatch:

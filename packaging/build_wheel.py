@@ -18,7 +18,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 
 NAME = "cadquery-ocp-novtk"
-VERSION = "8.0.1.0.0+catalix.1"
+VERSION = "8.0.1.0.0+novtk.1"
 DIST_INFO = f"cadquery_ocp_novtk-{VERSION}.dist-info"
 OCCT = {
     "linux_x86_64": ("novtk_h6e372de_101", "a614d7625a2e2278ff877eea340f1a3d980c691e0d3f8522a6da3fd28c38b2d4"),
@@ -89,7 +89,7 @@ def main() -> None:
         "License-Expression: Apache-2.0\n"
         "License-File: LICENSE\n"
     ).encode()
-    wheel_metadata = f"Wheel-Version: 1.0\nGenerator: catalix-ocp-novtk native builder\nRoot-Is-Purelib: false\nTag: {tag}\n".encode()
+    wheel_metadata = f"Wheel-Version: 1.0\nGenerator: ocp-novtk native builder\nRoot-Is-Purelib: false\nTag: {tag}\n".encode()
     files = {"OCP" + suffix: args.binary.read_bytes()}
     for stub in stubs:
         files[(Path("OCP-stubs") / stub.relative_to(args.stubs)).as_posix()] = stub.read_bytes()
