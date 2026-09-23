@@ -122,8 +122,7 @@ jobs:
           CXX: cl.exe
         run: |
           micromamba run -n bindgen cmake -S generated -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release -DOCP_ENABLE_VTK=OFF `
-            -DPYTHON_MODULE_EXTENSION=.pyd
+            -DCMAKE_BUILD_TYPE=Release -DOCP_ENABLE_VTK=OFF
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           micromamba run -n bindgen cmake --build build --parallel 1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

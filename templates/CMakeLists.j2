@@ -50,6 +50,14 @@ target_include_directories( {{ name }} PRIVATE ${OpenCASCADE_INCLUDE_DIR} )
 target_link_libraries( {{ name }} PRIVATE ${OpenCASCADE_LIBRARIES} )
 target_link_libraries( {{ name }} PRIVATE pybind11::pybind11 fmt::fmt)
 
+if(NOT DEFINED PYTHON_MODULE_EXTENSION OR PYTHON_MODULE_EXTENSION STREQUAL "")
+  if(WIN32)
+    set(PYTHON_MODULE_EXTENSION ".pyd")
+  else()
+    set(PYTHON_MODULE_EXTENSION ".so")
+  endif()
+endif()
+
 set_target_properties( {{ name }}
                        PROPERTIES
                        CXX_STANDARD 17
