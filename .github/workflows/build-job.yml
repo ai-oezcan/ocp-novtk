@@ -152,7 +152,7 @@ jobs:
         run: |
           $pywrapSha = git -C pywrap rev-parse HEAD
           micromamba run -n bindgen python packaging/build_wheel.py `
-            --binary build/OCP.pyd --stubs build/OCP-stubs `
+            --binary build/OCP.cp313-win_amd64.pyd --stubs build/OCP-stubs `
             --license LICENSE --output dist `
             --source-sha $env:GITHUB_SHA --pywrap-sha $pywrapSha
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

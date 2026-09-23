@@ -49,7 +49,7 @@ def main() -> None:
     if sys.platform == "linux" and sysconfig.get_platform() == "linux-x86_64":
         platform, suffix = "linux_x86_64", ".so"
     elif sys.platform == "win32" and sysconfig.get_platform() == "win-amd64":
-        platform, suffix = "win_amd64", ".pyd"
+        platform, suffix = "win_amd64", ".cp313-win_amd64.pyd"
     else:
         parser.error("only Linux x86_64 and Windows x64 are supported")
     if args.binary.name != "OCP" + suffix or not args.binary.is_file():

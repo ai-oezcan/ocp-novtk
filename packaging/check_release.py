@@ -33,7 +33,7 @@ for name in sorted(expected):
     with ZipFile(wheel) as archive:
         assert archive.testzip() is None
         members = set(archive.namelist())
-        extension = ".pyd" if platform == "win_amd64" else ".so"
+        extension = ".cp313-win_amd64.pyd" if platform == "win_amd64" else ".so"
         assert "OCP" + extension in members
         assert "OCP-stubs/__init__.pyi" in members
         assert f"{DIST_INFO}/licenses/LICENSE" in members
@@ -43,7 +43,12 @@ for name in sorted(expected):
             or member.startswith(f"{DIST_INFO}/")
             for member in members
         ), members
-        assert not any("vtk" in member.lower() or "ffmpeg" in member.lower() or "libtk" in member.lower() for member in members)
+        assert not any(
+            Path(member).name.lower().startswith(("vtk", "ivtk"))
+            or "ffmpeg" in member.lower()
+            or "libtk" in Path(member).name.lower()
+            for member in members
+        )
         assert f"Tag: {proof['tag']}\n" in archive.read(f"{DIST_INFO}/WHEEL").decode()
         metadata = archive.read(f"{DIST_INFO}/METADATA").decode()
         assert "Name: cadquery-ocp-novtk\n" in metadata
