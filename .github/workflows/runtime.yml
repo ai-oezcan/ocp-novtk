@@ -1,0 +1,132 @@
+name: Standalone OCCT novtk native runtime
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["occt-runtime-8.0.1-novtk.1"]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: runtime-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: Bundle and smoke ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux_x86_64
+            runner: ubuntu-22.04
+            occt_build: novtk_h6e372de_101
+            extension: tar.gz
+            venv_python: bin/python
+          - platform: win_amd64
+            runner: windows-2022
+            occt_build: novtk_h6bfc850_101
+            extension: zip
+            venv_python: Scripts/python.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: tools
+          create-args: python=3.11
+      - name: Solve and install pinned OCCT with its native dependency closure
+        run: |
+          extra=()
+          if [[ '${{ matrix.platform }}' == 'linux_x86_64' ]]; then
+            extra=('fmt=12.2.0=h76c4fd7_1')
+          fi
+          micromamba create --yes --prefix "$RUNNER_TEMP/occt-prefix" \
+            -c conda-forge --override-channels "occt=8.0.1=${{ matrix.occt_build }}" "${extra[@]}"
+      - name: Assemble standalone archive with notices and package provenance
+        run: |
+          python packaging/build_runtime.py --prefix "$RUNNER_TEMP/occt-prefix" --output dist
+          python packaging/check_runtime_release.py --runtime-dir dist --platform "${{ matrix.platform }}"
+      - name: Obtain and verify independently released OCP wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p wheels
+          gh release download ocp-novtk-8.0.1.0.0-novtk.1 --repo "$GITHUB_REPOSITORY" \
+            --pattern "*-${{ matrix.platform }}.whl" \
+            --pattern "*-${{ matrix.platform }}.whl.provenance.json" --dir wheels
+          python packaging/check_runtime_release.py --wheel-dir wheels --platform "${{ matrix.platform }}"
+      - name: Extract into relocated plain CPython venv and install consumer
+        run: |
+          python -m venv "$RUNNER_TEMP/plain"
+          if [[ '${{ matrix.extension }}' == 'tar.gz' ]]; then
+            tar -xzf dist/*.tar.gz -C "$RUNNER_TEMP/plain"
+          else
+            python -m zipfile -e dist/*.zip "$RUNNER_TEMP/plain"
+          fi
+          venv_python="$RUNNER_TEMP/plain/${{ matrix.venv_python }}"
+          "$venv_python" -m pip install --no-index --no-deps wheels/*.whl
+          printf 'cadquery-ocp-novtk==8.0.1.0.0+novtk.1\n' > "$RUNNER_TEMP/ocp-constraint.txt"
+          "$venv_python" -m pip install -c "$RUNNER_TEMP/ocp-constraint.txt" 'build123d==0.13.0'
+          "$venv_python" -m pip check
+      - name: Smoke import and STEP/BREP round-trip without micromamba runtime
+        run: |
+          unset CONDA_PREFIX CONDA_DEFAULT_ENV MAMBA_ROOT_PREFIX MAMBA_EXE
+          if [[ '${{ matrix.platform }}' == 'linux_x86_64' ]]; then
+            export LD_LIBRARY_PATH="$RUNNER_TEMP/plain/lib"
+            export FONTCONFIG_FILE="$RUNNER_TEMP/plain/etc/fonts/fonts.conf"
+          else
+            export FONTCONFIG_FILE="$RUNNER_TEMP/plain/Library/etc/fonts/fonts.conf"
+          fi
+          "$RUNNER_TEMP/plain/${{ matrix.venv_python }}" packaging/check_runtime.py \
+            --prefix "$RUNNER_TEMP/plain" --wheel wheels/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.platform }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.provenance.json
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    if: github.ref == 'refs/tags/occt-runtime-8.0.1-novtk.1'
+    needs: bundle
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-*
+          path: dist
+          merge-multiple: true
+      - name: Validate both archives and the public release target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh repo view "$GITHUB_REPOSITORY" --json visibility --jq .visibility)" = PUBLIC
+          python3 packaging/check_runtime_release.py --runtime-dir dist
+      - name: Publish immutable, separately versioned runtime release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to overwrite assets.' >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/*.provenance.json \
+            --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$GITHUB_REF_NAME" \
+            --notes 'Standalone conda-forge OCCT 8.0.1 novtk native closure for CPython 3.13 OCP wheel 8.0.1.0.0+novtk.1. Linux x86_64 and Windows x64; package provenance and license notices are in each archive. Install the matching wheel separately. No micromamba is needed at runtime.'
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
