@@ -11,9 +11,10 @@ It links the pinned conda-forge `occt` 8.0.1 `novtk` shared libraries. The
 wheel is not manylinux or standalone: install the matching native runtime
 separately, either in a conda environment or from this repository's
 `occt-runtime-8.0.1-novtk.1` GitHub Release. The native archives contain the
-OCCT package, its resolved conda-forge native dependency closure, headers,
-license notices and per-package provenance, but no Python interpreter or OCP
-wheel. Neither runtime archive bundles VTK, FFmpeg or JBIG.
+OCCT package, its resolved conda-forge dependency closure except operating
+system and Microsoft system runtimes, headers, license notices and per-package
+provenance, but no Python interpreter or OCP wheel. Neither archive bundles
+VTK, FFmpeg, JBIG, or Microsoft CRT/VC++ redistributable DLLs.
 
 ## Install a released wheel
 
@@ -71,6 +72,17 @@ prefix. On Windows, set
 the first `OCP` or `build123d` import and keep the returned handle alive for
 the process lifetime. A packaged launcher must perform these steps; activating
 micromamba is not needed for the installed runtime.
+
+Windows requires Windows 10 or newer and the official
+[Microsoft Visual C++ Redistributable (x64)](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
+installed separately; choose a version at least as recent as the MSVC build
+tools used to compile the wheel. The conda-forge UCRT, VC++ and OpenMP DLL
+packages are *not* copied into this public standalone release: their Microsoft
+license terms restrict standalone redistribution. Runtime provenance lists
+the excluded package identities and these external requirements. An eventual
+installer must obtain the prerequisite through the official Microsoft channel
+and confirm loading on a clean Windows machine, not only a CI runner with
+Visual Studio.
 
 Linux must provide glibc 2.34 or newer (the wheel was built on Ubuntu 22.04).
 Bundling OCCT and its dependencies cannot replace the host C library; importing

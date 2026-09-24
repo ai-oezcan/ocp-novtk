@@ -128,5 +128,5 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/*.provenance.json \
             --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$GITHUB_REF_NAME" \
-            --notes 'Standalone conda-forge OCCT 8.0.1 novtk native closure for CPython 3.13 OCP wheel 8.0.1.0.0+novtk.1. Linux x86_64 and Windows x64; package provenance and license notices are in each archive. Install the matching wheel separately. No micromamba is needed at runtime.'
+            --notes 'OCCT 8.0.1 novtk native archives for the separately published CPython 3.13 OCP wheel 8.0.1.0.0+novtk.1. Linux x86_64 needs glibc >=2.34. Windows x64 needs Windows 10+ and the official Microsoft Visual C++ 2015-2022 Redistributable (x64), installed separately: Microsoft CRT/VC++ DLLs are deliberately excluded from this standalone archive under their redistribution terms. Each archive has package hashes and license notices. End-user runtime does not need micromamba.'
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

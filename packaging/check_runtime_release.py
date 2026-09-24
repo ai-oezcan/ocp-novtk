@@ -7,7 +7,12 @@ import tarfile
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
-from build_runtime import LINUX_FMT, TAG
+from build_runtime import (
+    LINUX_FMT,
+    TAG,
+    WINDOWS_SYSTEM_PACKAGES,
+    WINDOWS_SYSTEM_REQUIREMENTS,
+)
 from build_wheel import OCCT, VERSION, sha256
 
 
@@ -46,6 +51,16 @@ def check_runtime(folder: Path, selected_platform: str | None = None) -> None:
         assert len({p["name"] for p in packages}) == len(packages)
         occt = next(p for p in packages if p["name"] == "occt")
         assert occt["sha256"] == digest and occt["build"] == build
+        if platform == "win_amd64":
+            assert proof["system_requirements"] == list(WINDOWS_SYSTEM_REQUIREMENTS)
+            excluded = proof["excluded_packages"]
+            assert {p["name"] for p in excluded} == set(WINDOWS_SYSTEM_PACKAGES)
+            assert not any(p["name"] in WINDOWS_SYSTEM_PACKAGES for p in packages)
+            for package in excluded:
+                assert package["url"].startswith("https://conda.anaconda.org/conda-forge/")
+                assert len(package["sha256"]) == 64
+        else:
+            assert proof["system_requirements"] == [] and proof["excluded_packages"] == []
         if platform == "linux_x86_64":
             fmt = next(p for p in packages if p["name"] == "fmt")
             assert (fmt["version"], fmt["build"], fmt["sha256"]) == LINUX_FMT
@@ -79,6 +94,10 @@ def check_runtime(folder: Path, selected_platform: str | None = None) -> None:
             path = PurePosixPath(member)
             assert not path.is_absolute() and ".." not in path.parts and path.parts
             assert not any(term in member.lower() for term in ("vtk", "ffmpeg", "jbig")), member
+            if platform == "win_amd64" and member.lower().endswith(".dll"):
+                assert not path.name.lower().startswith((
+                    "msvcp", "vcruntime", "concrt", "vcomp", "api-ms-win-crt", "ucrtbase"
+                )), f"Microsoft redistributable DLL must not be published: {member}"
         listed = set(members)
         assert len(listed) == len(members), "duplicate archive member"
         assert any(p.startswith("fonts/") for p in listed), "bundled font resources missing"

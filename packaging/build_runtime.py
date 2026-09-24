@@ -31,6 +31,11 @@ LINUX_FMT = ("12.2.0", "h76c4fd7_1", "022af33b6414620813d13c072251e96af68549657f
 FORBIDDEN = ("vtk", "ffmpeg", "jbig")
 MAX_ARCHIVE_SIZE = 2_000_000_000  # GitHub Release's per-asset limit is 2 GiB.
 NOTICE_NAMES = ("license", "licence", "copying", "copyright", "notice")
+WINDOWS_SYSTEM_PACKAGES = ("ucrt", "vc", "vc14_runtime", "vcomp14")
+WINDOWS_SYSTEM_REQUIREMENTS = (
+    "Windows 10 or newer (OS Universal CRT)",
+    "Microsoft Visual C++ 2015-2022 Redistributable x64, installed from Microsoft",
+)
 
 
 def platform_tag() -> str:
@@ -141,6 +146,8 @@ def closure(records: dict[str, dict[str, Any]], platform: str) -> list[dict[str,
             if not isinstance(value, str) or not value or safe_path(value).parts != (value,):
                 raise ValueError(f"package missing or invalid {field}: {name}")
         depends = record.get("depends", [])
+        if platform == "win_amd64" and key in WINDOWS_SYSTEM_PACKAGES:
+            continue  # Microsoft licenses do not permit this standalone binary release.
         if not isinstance(depends, list) or any(not isinstance(spec, str) for spec in depends):
             raise ValueError(f"invalid dependencies for {name}")
         for spec in depends:
@@ -404,6 +411,8 @@ def main() -> None:
         platform = platform_tag()
         records = records_in(args.prefix)
         packages = closure(records, platform)
+        if platform == "win_amd64" and any(name not in records for name in WINDOWS_SYSTEM_PACKAGES):
+            raise ValueError("missing Windows system-runtime package metadata")
         filename = f"{TAG}-{platform}" + (".tar.gz" if platform == "linux_x86_64" else ".zip")
         args.output.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="occt-runtime-") as workspace:
@@ -413,6 +422,17 @@ def main() -> None:
                 "archive": filename,
                 "platform": platform,
                 "wheel_version": VERSION,
+                "system_requirements": list(WINDOWS_SYSTEM_REQUIREMENTS) if platform == "win_amd64" else [],
+                "excluded_packages": [
+                    {
+                        "name": name,
+                        "version": records[name]["version"],
+                        "build": records[name]["build"],
+                        "url": records[name]["url"],
+                        "sha256": records[name]["sha256"],
+                    }
+                    for name in WINDOWS_SYSTEM_PACKAGES
+                ] if platform == "win_amd64" else [],
                 "occt": {
                     "filename": next(record["fn"] for record in packages if record["name"] == "occt"),
                     "url": next(record["url"] for record in packages if record["name"] == "occt"),
